@@ -20,8 +20,10 @@ package com.ichi2.anki;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
+import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.KeyEvent;
@@ -39,6 +41,7 @@ import com.ichi2.widget.WidgetStatus;
 import org.json.JSONException;
 
 import java.lang.ref.WeakReference;
+import java.util.Locale;
 
 public class Reviewer extends AbstractFlashcardViewer {
     private boolean mHasDrawerSwipeConflicts = false;
@@ -262,9 +265,42 @@ public class Reviewer extends AbstractFlashcardViewer {
         return super.onPrepareOptionsMenu(menu);
     }
 
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+
+        if(code == 24 || code == 25 || code == 87 || code == 88 || code == 66) {
+            if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                return onKeyDown(event.getKeyCode(), event);
+            } else if (event.getAction() == KeyEvent.ACTION_UP) {
+                return onKeyUp(event.getKeyCode(), event);
+            }
+        }
+        return super.dispatchKeyEvent(event);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+
+        if (keyCode == 87 || keyCode == 88 || keyCode == 24 || keyCode == 25 || keyCode == 66) {
+            return true;
+        }
+
+
+        return super.onKeyDown(keyCode, event);
+    }
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
+        //66 and 24 come in sequence from a single click of the central button on the controller (my 5 button bluetooth controller)
+        //so if we don't ignore 66 here it triggers "show answer" and the next 24 coming immediately
+        //after it triggers a choice which is incorrect. Not able to prevent this double key event
+        //re-assigning the 66 (enter) key to other keys (see the code below converting 24 to 66 in case we're not in
+        //the answer visible mode)
+        if(keyCode == 66) {
+            return true;
+        }
+
         char keyPressed = (char) event.getUnicodeChar();
         if (!mAnswerField.isFocused()) {
 	        if (sDisplayAnswer) {
@@ -284,11 +320,46 @@ public class Reviewer extends AbstractFlashcardViewer {
 	                answerCard(EASE_EASY);
 	                return true;
 	            }
+
+
+                //left
+                if (keyCode == 88) {
+                    answerCardVoicingChoice(EASE_FAILED);
+                    return true;
+                }
+                //plus sound
+                if (keyCode == 24) {
+                    answerCardVoicingChoice(EASE_HARD);
+                    return true;
+                }
+                //right
+                if (keyCode == 87) {
+                    answerCardVoicingChoice(EASE_MID);
+                    return true;
+                }
+
+                //minus sound
+                if (keyCode == 25) {
+                    answerCardVoicingChoice(EASE_EASY);
+                    return true;
+                }
+
+
 	            if (keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
 	                answerCard(getDefaultEase());
 	                return true;
 	            }
-	        }
+	        } else {
+                if(keyCode == 24) {
+                    flipCardIfAppropriate();
+                    return true;
+                } else if(keyCode == 88) {
+                    playSounds(true);
+                    return true;
+                } else if(keyCode == 25 || keyCode == 87) {
+                    return true;
+                }
+            }
 	        if (keyPressed == 'e') {
 	            editCard();
 	            return true;
@@ -324,6 +395,84 @@ public class Reviewer extends AbstractFlashcardViewer {
 	        }
         }
         return super.onKeyUp(keyCode, event);
+    }
+
+    private class IntHolder {
+        public int Value;
+
+        private IntHolder(int value) {
+            Value = value;
+        }
+    }
+
+    private void answerCardVoicingChoice(int choiceCodeParam)
+    {
+        String language = Locale.ENGLISH.getISO3Language();
+
+        //2 - Again,Good, 3 - Again,Good,Easy, Otherwise - Again,Hard,Good,Easy
+        int buttonCount = getCol().getSched().answerButtons(mCurrentCard);
+
+        String choice;
+        final IntHolder choiceCode = new IntHolder(EASE_UNSUPPORTED);
+
+        //the underlying implementation may treat EASE_HARD (second button)
+        //as good when there's only 2 buttons shown (Again,Good) and so on.
+        //thus the strange conversions below
+
+        if(buttonCount == 2) {
+            choice = "Again, Good.";
+            if(choiceCodeParam == EASE_MID) {
+                choice = "Good.";
+                choiceCode.Value = EASE_HARD;
+            } else if(choiceCodeParam == EASE_FAILED) {
+                choice = "Again.";
+                choiceCode.Value = EASE_FAILED;
+            }
+        } else if(buttonCount == 3) {
+            choice = "Again, Good, Easy.";
+            if(choiceCodeParam == EASE_EASY) {
+                choice = "Easy.";
+                choiceCode.Value = EASE_MID;
+            } else if(choiceCodeParam == EASE_MID) {
+                choice = "Good.";
+                choiceCode.Value = EASE_HARD;
+            } else if(choiceCodeParam == EASE_FAILED) {
+                choice = "Again.";
+                choiceCode.Value = EASE_FAILED;
+            }
+        } else {
+            choice = "Again, Hard, Good, Easy.";
+
+            if(choiceCodeParam == EASE_EASY) {
+                choice = "Easy.";
+                choiceCode.Value = choiceCodeParam;
+            } else if(choiceCodeParam == EASE_MID) {
+                choice = "Good.";
+                choiceCode.Value = choiceCodeParam;
+            } else if(choiceCodeParam == EASE_HARD) {
+                choice = "Hard.";
+                choiceCode.Value = choiceCodeParam;
+            } else if(choiceCodeParam == EASE_FAILED) {
+                choice = "Again.";
+                choiceCode.Value = choiceCodeParam;
+            }
+
+            choiceCode.Value = choiceCodeParam;
+        }
+
+        ReadText.speak(choice, language, new Runnable() {
+            @Override
+            public void run() {
+                Reviewer.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        if(choiceCode.Value != EASE_UNSUPPORTED) {
+                            answerCard(choiceCode.Value);
+                        }
+                    }
+                });
+            }
+        });
     }
     
 
@@ -373,7 +522,6 @@ public class Reviewer extends AbstractFlashcardViewer {
             setWhiteboardVisibility(mShowWhiteboard);
         }
     }
-
 
     private void setWhiteboardEnabledState(boolean state) {
         mPrefWhiteboard = state;

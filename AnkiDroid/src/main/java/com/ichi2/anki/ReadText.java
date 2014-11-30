@@ -21,6 +21,7 @@ import android.content.DialogInterface;
 import android.content.res.Resources;
 import android.os.Handler;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -30,6 +31,7 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.concurrent.Callable;
 
 public class ReadText {
     private static TextToSpeech mTts;
@@ -47,6 +49,12 @@ public class ReadText {
     // private boolean mTtsReady = false;
 
     public static void speak(String text, String loc) {
+        speak(text, loc, null);
+    }
+
+    public static void speak(String text, String loc, final Runnable onCompletedListener) {
+        mTextToSpeak = text;
+
         int result = mTts.setLanguage(new Locale(loc));
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
             Toast.makeText(mReviewer.get(), mReviewer.get().getString(R.string.no_tts_available_message)
@@ -61,6 +69,33 @@ public class ReadText {
             }
             Log.v(AnkiDroidApp.TAG, "tts text '" + text + "' to be played for locale ("+loc+")");
             mTts.speak(mTextToSpeak, TextToSpeech.QUEUE_FLUSH, mTtsParams);
+            mTts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+
+                @Override
+                public void onStart(String utteranceId) {
+                }
+
+                @Override
+                public void onDone(String utteranceId) {
+                    onCompleted();
+                }
+
+                @Override
+                public void onError(String utteranceId) {
+                    onCompleted();
+                }
+
+                private void onCompleted() {
+                    if(onCompletedListener != null) {
+                        try {
+                            mTts.setOnUtteranceProgressListener(null);
+                            onCompletedListener.run();
+                        } catch (Exception e){
+                            Log.e("Completed Listener Failed", "TTS completed listner failewd", e);
+                        }
+                    }
+                }
+            });
         }
     }
 

@@ -156,6 +156,7 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
     public static final int EASE_HARD = 2;
     public static final int EASE_MID = 3;
     public static final int EASE_EASY = 4;
+    public static final int EASE_UNSUPPORTED = 50;
 
     /** Regex pattern used in removing tags from text before diff */
     private static final Pattern sSpanPattern = Pattern.compile("</?span[^>]*>");
@@ -407,11 +408,17 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
     private View.OnClickListener mFlipCardListener = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
+            flipCardIfAppropriate();
+        }
+    };
+
+    protected void flipCardIfAppropriate() {
+        if(!sDisplayAnswer) {
             Log.i(AnkiDroidApp.TAG, "Flip card changed:");
             mTimeoutHandler.removeCallbacks(mShowAnswerTask);
             displayCardAnswer();
         }
-    };
+    }
 
     private View.OnClickListener mSelectEaseHandler = new View.OnClickListener() {
         @Override
@@ -1061,7 +1068,6 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
 
         return super.onKeyDown(keyCode, event);
     }
-
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
@@ -2510,6 +2516,7 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
 
 
     private void unblockControls() {
+
         mCardFrame.setEnabled(true);
         mFlipCardLayout.setEnabled(true);
 
