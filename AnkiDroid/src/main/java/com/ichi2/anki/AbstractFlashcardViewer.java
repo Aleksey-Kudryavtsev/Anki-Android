@@ -96,6 +96,7 @@ import com.ichi2.themes.Themes;
 import com.ichi2.utils.DiffEngine;
 
 import org.amr.arabic.ArabicUtilities;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -110,9 +111,11 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -2318,8 +2321,11 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
 
         text = wrapAbbriviationsInSayAsTags(text);
 
+        text = transcribeRussianTextWithPhonemeTags(text);
+
         return text;
     }
+
 
     private static String wrapAbbriviationsInSayAsTags(String text) {
         Pattern p = Pattern.compile("([A-Z][A-Z]+)", Pattern.MULTILINE);
@@ -2334,6 +2340,67 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
         return text;
     }
 
+    private static String transcribeRussianTextWithPhonemeTags(String text)
+    {
+        Pattern p = Pattern.compile("([А-Яа-я]+)", Pattern.MULTILINE);
+        Matcher m = p.matcher(text);
+        StringBuffer stringBuffer = new StringBuffer();
+        while (m.find()) {
+            m.appendReplacement(stringBuffer, russianWordToIPAPhonemeTag(m.group(1)));
+        }
+        m.appendTail(stringBuffer);
+        return stringBuffer.toString();
+    }
+
+    private static Map<String, String> russianSymbolIPAEquivalents;
+
+    static {
+        russianSymbolIPAEquivalents = new HashMap<String, String>();
+        russianSymbolIPAEquivalents.put("й", "j");
+        russianSymbolIPAEquivalents.put("ц", "ts");
+        russianSymbolIPAEquivalents.put("у", "uː");
+        russianSymbolIPAEquivalents.put("к", "k");
+        russianSymbolIPAEquivalents.put("е", "ɛ");
+        russianSymbolIPAEquivalents.put("н", "n");
+        russianSymbolIPAEquivalents.put("г", "g");
+        russianSymbolIPAEquivalents.put("ш", "ʃ");
+        russianSymbolIPAEquivalents.put("щ", "ʃtʃ");
+        russianSymbolIPAEquivalents.put("з", "z");
+        russianSymbolIPAEquivalents.put("х", "h");
+        russianSymbolIPAEquivalents.put("ъ", "");
+        russianSymbolIPAEquivalents.put("ф", "f");
+        russianSymbolIPAEquivalents.put("ы", "ɪ");
+        russianSymbolIPAEquivalents.put("в", "v");
+        russianSymbolIPAEquivalents.put("а", "ɑː");
+        russianSymbolIPAEquivalents.put("п", "p");
+        russianSymbolIPAEquivalents.put("р", "r");
+        russianSymbolIPAEquivalents.put("о", "ɔː");
+        russianSymbolIPAEquivalents.put("л", "l");
+        russianSymbolIPAEquivalents.put("д", "d");
+        russianSymbolIPAEquivalents.put("ж", "ʒ");
+        russianSymbolIPAEquivalents.put("э", "æ");
+        russianSymbolIPAEquivalents.put("я", "jʌ");
+        russianSymbolIPAEquivalents.put("ч", "tʃ");
+        russianSymbolIPAEquivalents.put("с", "s");
+        russianSymbolIPAEquivalents.put("м", "m");
+        russianSymbolIPAEquivalents.put("и", "iː");
+        russianSymbolIPAEquivalents.put("т", "t");
+        russianSymbolIPAEquivalents.put("ь", "");
+        russianSymbolIPAEquivalents.put("б", "b");
+        russianSymbolIPAEquivalents.put("ю", "juː");
+    }
+
+    private static String russianWordToIPAPhonemeTag(String word) {
+        word = word.toLowerCase();
+        StringBuffer result = new StringBuffer();
+        for(int i=0; i<word.length(); i++) {
+            String replacement = russianSymbolIPAEquivalents.get(word.charAt(i) + "");
+            result.append(replacement);
+
+
+        }
+        return "<break time=\"50ms\"/><prosody rate=\"-40%\"><phoneme alphabet=\"ipa\" ph=\"" + StringEscapeUtils.escapeXml11(result.toString()) + "\"></phoneme></prosody>";
+    }
 
     /**
      * Returns the configuration for the current {@link Card}.
