@@ -2316,16 +2316,23 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
     private static String prepareCardTextForReading(String text, int cardSide) {
         text = Utils.stripHTML(text);
 
-        Pattern p = Pattern.compile("([A-Z][A-Z]+)");
+        text = wrapAbbriviationsInSayAsTags(text);
+
+        return text;
+    }
+
+    private static String wrapAbbriviationsInSayAsTags(String text) {
+        Pattern p = Pattern.compile("([A-Z][A-Z]+)", Pattern.MULTILINE);
         Matcher m = p.matcher(text);
         StringBuffer stringBuffer = new StringBuffer();
         while (m.find()) {
             m.appendReplacement(stringBuffer, "<say-as interpret-as=\"spell-out\">" + m.group(1) + "</say-as>");
         }
+        m.appendTail(stringBuffer);
 
-        return stringBuffer.toString();
+        text = stringBuffer.toString();
+        return text;
     }
-
 
 
     /**
