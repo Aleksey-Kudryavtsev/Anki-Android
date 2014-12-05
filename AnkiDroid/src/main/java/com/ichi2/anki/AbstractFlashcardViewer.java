@@ -2304,13 +2304,28 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
      */
     private static void readCardText(final Card card, final int cardSide) {
         if (Sound.SOUNDS_QUESTION == cardSide) {
-            ReadText.textToSpeech(Utils.stripHTML(card.q(true)), getDeckIdForCard(card), card.getOrd(),
+            ReadText.textToSpeech(prepareCardTextForReading(card.q(true), cardSide), getDeckIdForCard(card), card.getOrd(),
                     Sound.SOUNDS_QUESTION);
         } else if (Sound.SOUNDS_ANSWER == cardSide) {
-            ReadText.textToSpeech(Utils.stripHTML(card.getPureAnswerForReading()), getDeckIdForCard(card),
+            ReadText.textToSpeech(prepareCardTextForReading(card.getPureAnswerForReading(), cardSide), getDeckIdForCard(card),
                     card.getOrd(), Sound.SOUNDS_ANSWER);
         }
     }
+
+
+    private static String prepareCardTextForReading(String text, int cardSide) {
+        text = Utils.stripHTML(text);
+
+        Pattern p = Pattern.compile("([A-Z][A-Z]+)");
+        Matcher m = p.matcher(text);
+        StringBuffer stringBuffer = new StringBuffer();
+        while (m.find()) {
+            m.appendReplacement(stringBuffer, "<say-as interpret-as=\"spell-out\">" + m.group(1) + "</say-as>");
+        }
+
+        return stringBuffer.toString();
+    }
+
 
 
     /**
