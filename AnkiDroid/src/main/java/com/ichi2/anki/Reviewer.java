@@ -20,10 +20,8 @@ package com.ichi2.anki;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Resources;
-import android.os.PowerManager;
 import android.util.DisplayMetrics;
 import android.view.Display;
 import android.view.KeyEvent;
@@ -269,6 +267,10 @@ public class Reviewer extends AbstractFlashcardViewer {
     public boolean dispatchKeyEvent(KeyEvent event) {
         int code = event.getKeyCode();
 
+        if (workAroundCentralButtonSending66and24inSequence(code)) {
+            return true;
+        }
+
         if(code == 24 || code == 25 || code == 87 || code == 88 || code == 66) {
             if (event.getAction() == KeyEvent.ACTION_DOWN) {
                 return onKeyDown(event.getKeyCode(), event);
@@ -277,6 +279,20 @@ public class Reviewer extends AbstractFlashcardViewer {
             }
         }
         return super.dispatchKeyEvent(event);
+    }
+
+    private long lastTimeEnterPressed = 0;
+
+    //a workaround for my specific bluetooth remote
+    private boolean workAroundCentralButtonSending66and24inSequence(int code) {
+        if(code == 66) {
+            lastTimeEnterPressed = System.currentTimeMillis();
+        }
+        if(code == 24 && System.currentTimeMillis() - lastTimeEnterPressed < 200)
+        {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -292,15 +308,6 @@ public class Reviewer extends AbstractFlashcardViewer {
 
     @Override
     public boolean onKeyUp(int keyCode, KeyEvent event) {
-        //66 and 24 come in sequence from a single click of the central button on the controller (my 5 button bluetooth controller)
-        //so if we don't ignore 66 here it triggers "show answer" and the next 24 coming immediately
-        //after it triggers a choice which is incorrect. Not able to prevent this double key event
-        //re-assigning the 66 (enter) key to other keys (see the code below converting 24 to 66 in case we're not in
-        //the answer visible mode)
-        if(keyCode == 66) {
-            return true;
-        }
-
         char keyPressed = (char) event.getUnicodeChar();
         if (!mAnswerField.isFocused()) {
 	        if (sDisplayAnswer) {
@@ -344,6 +351,12 @@ public class Reviewer extends AbstractFlashcardViewer {
                     return true;
                 }
 
+                //central "enter" button
+                if(keyCode == 66) {
+                    //re-read the back (answer) of the card
+                    playSounds(true);
+                    return true;
+                }
 
 	            if (keyCode == KeyEvent.KEYCODE_SPACE || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_NUMPAD_ENTER) {
 	                answerCard(getDefaultEase());
@@ -354,6 +367,7 @@ public class Reviewer extends AbstractFlashcardViewer {
                     flipCardIfAppropriate();
                     return true;
                 } else if(keyCode == 88) {
+                    //re-read the front (question) of the card
                     playSounds(true);
                     return true;
                 } else if(keyCode == 25 || keyCode == 87) {
