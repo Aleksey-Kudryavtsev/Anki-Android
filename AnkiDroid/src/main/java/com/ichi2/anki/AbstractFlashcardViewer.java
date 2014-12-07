@@ -2319,9 +2319,19 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
     private static String prepareCardTextForReading(String text, int cardSide) {
         text = Utils.stripHTML(text);
 
+        if(Sound.SOUNDS_QUESTION == cardSide) {
+            text = spellFrontWhenPronunciationRequired(text);
+        }
+
+        if(Sound.SOUNDS_ANSWER == cardSide) {
+            text = spellWordsInTheAnswer(text);
+            text = removeTranscriptions(text);
+        }
+
         text = wrapAbbriviationsInSayAsTags(text);
 
         text = transcribeRussianTextWithPhonemeTags(text);
+
 
         return text;
     }
@@ -2339,6 +2349,7 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
         text = stringBuffer.toString();
         return text;
     }
+
 
     private static String transcribeRussianTextWithPhonemeTags(String text)
     {
@@ -2400,6 +2411,60 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
 
         }
         return "<break time=\"50ms\"/><prosody rate=\"-40%\"><phoneme alphabet=\"ipa\" ph=\"" + StringEscapeUtils.escapeXml11(result.toString()) + "\"></phoneme></prosody>";
+    }
+
+    private static String spellWordsInTheAnswer(String text)
+    {
+        Pattern pattern = Pattern.compile("^([^/]+)/", Pattern.MULTILINE);
+        Matcher matcher = pattern.matcher(text);
+        if(matcher.find()) {
+            String word = matcher.group(1);
+            return spellWords(text, word, "Spelling");
+        }
+
+        return text;
+    }
+
+    private static String spellWords(String text, String word, String prefix) {
+        word = word.trim();
+        String[] letters = word.split("");
+        StringBuffer buffer = new StringBuffer();
+        for(String letter:letters) {
+            if(letter.equals(" ")) {
+                buffer.append("<break time=\"100ms\"/>");
+            } else {
+                buffer.append(letter.toUpperCase());
+                buffer.append("<break time=\"10ms\"/>");
+            }
+        }
+        buffer.insert(0, "<break time=\"100ms\"/> ");
+            buffer.insert(0, prefix);
+        buffer.append("<break time=\"100ms\"/>\n");
+        buffer.append(text);
+
+        return buffer.toString();
+    }
+
+    private static String removeTranscriptions(String text)
+    {
+        Pattern p = Pattern.compile("(/[^/><]+/)");
+        Matcher m = p.matcher(text);
+        StringBuffer buffer = new StringBuffer();
+        while(m.find()) {
+            m.appendReplacement(buffer, "<break time=\"100ms\"/>");
+        }
+        m.appendTail(buffer);
+
+        return buffer.toString();
+    }
+
+    private static String spellFrontWhenPronunciationRequired(String text) {
+        Pattern p = Pattern.compile("^(.+)\\(pron|pronunciation\\)", Pattern.MULTILINE);
+        Matcher m = p.matcher(text);
+        if(m.find()) {
+            return spellWords("", m.group(1), "Pronunciation of");
+        }
+        return text;
     }
 
     /**
