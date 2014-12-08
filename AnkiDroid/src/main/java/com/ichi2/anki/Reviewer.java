@@ -288,7 +288,7 @@ public class Reviewer extends AbstractFlashcardViewer {
         if(code == 66) {
             lastTimeEnterPressed = System.currentTimeMillis();
         }
-        if(code == 24 && System.currentTimeMillis() - lastTimeEnterPressed < 200)
+        if(code == 24 && System.currentTimeMillis() - lastTimeEnterPressed < 1000)
         {
             return true;
         }
@@ -363,14 +363,14 @@ public class Reviewer extends AbstractFlashcardViewer {
 	                return true;
 	            }
 	        } else {
-                if(keyCode == 24) {
+                if(keyCode == 66) {
                     flipCardIfAppropriate();
                     return true;
                 } else if(keyCode == 88) {
                     //re-read the front (question) of the card
                     playSounds(true);
                     return true;
-                } else if(keyCode == 25 || keyCode == 87) {
+                } else if(keyCode == 25 || keyCode == 87 || keyCode == 24) {
                     return true;
                 }
             }
