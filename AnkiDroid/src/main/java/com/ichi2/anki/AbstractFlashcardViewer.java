@@ -2434,7 +2434,7 @@ public abstract class AbstractFlashcardViewer extends NavigationDrawerActivity {
                 buffer.append("<break time=\"100ms\"/>");
             } else {
                 buffer.append(letter.toUpperCase());
-                buffer.append("<break time=\"10ms\"/>");
+                buffer.append("<break/>");
             }
         }
         buffer.insert(0, "<break time=\"100ms\"/> ");
